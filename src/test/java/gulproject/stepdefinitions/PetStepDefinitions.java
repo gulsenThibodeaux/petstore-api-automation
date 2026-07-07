@@ -5,6 +5,9 @@ import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.And;
 
+import gulproject.models.Pet;
+import gulproject.utilities.ConfigReader;
+
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
@@ -12,40 +15,29 @@ import org.testng.Assert;
 
 public class PetStepDefinitions {
 
-    private static long createdPetId;
-    private static String createdPetName;
-
     private Response response;
 
     @Given("the Petstore API is available")
     public void thePetstoreApiIsAvailable() {
-        RestAssured.baseURI = "https://petstore.swagger.io/v2";
+        RestAssured.baseURI = ConfigReader.get("base.url");
     }
 
     // ============ CREATE (POST) ============
 
     @When("I create a new pet with ID {long} name {string} and status {string}")
     public void iCreateANewPetWithIdNameAndStatus(long petId, String name, String status) {
-
-        String requestBody = "{"
-                + "\"id\": " + petId + ","
-                + "\"name\": \"" + name + "\","
-                + "\"status\": \"" + status + "\""
-                + "}";
+        Pet pet = new Pet(petId, name, status);
 
         response = RestAssured
                 .given()
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(pet)
                 .when()
                 .post("/pet")
                 .then()
                 .log().all()
                 .extract().response();
-
-        createdPetId = response.jsonPath().getLong("id");
-        createdPetName = response.jsonPath().getString("name");
     }
 
     @And("the created pet name should be {string}")
@@ -56,13 +48,13 @@ public class PetStepDefinitions {
 
     // ============ READ (GET) ============
 
-    @When("I send a GET request for the created pet")
-    public void iSendAGetRequestForTheCreatedPet() {
+    @When("I send a GET request for pet with ID {long}")
+    public void iSendAGetRequestForPetWithId(long petId) {
         response = RestAssured
                 .given()
                 .log().all()
                 .when()
-                .get("/pet/" + createdPetId)
+                .get("/pet/" + petId)
                 .then()
                 .log().all()
                 .extract().response();
@@ -76,34 +68,19 @@ public class PetStepDefinitions {
 
     // ============ UPDATE (PUT) ============
 
-    @When("I update the pet's status to {string}")
-    public void iUpdateThePetStatusTo(String newStatus) {
+    @When("I update pet ID {long} status to {string}")
+    public void iUpdatePetIdStatusTo(long petId, String newStatus) {
+        String currentName = RestAssured.get("/pet/" + petId).jsonPath().getString("name");
 
-        String requestBody = "{"
-                + "\"id\": " + createdPetId + ","
-                + "\"name\": \"" + createdPetName + "\","
-                + "\"status\": \"" + newStatus + "\""
-                + "}";
+        Pet updatedPet = new Pet(petId, currentName, newStatus);
 
         response = RestAssured
                 .given()
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(updatedPet)
                 .when()
                 .put("/pet")
-                .then()
-                .log().all()
-                .extract().response();
-    }
-
-    @And("I send a GET request for the updated pet")
-    public void iSendAGetRequestForTheUpdatedPet() {
-        response = RestAssured
-                .given()
-                .log().all()
-                .when()
-                .get("/pet/" + createdPetId)
                 .then()
                 .log().all()
                 .extract().response();
@@ -117,25 +94,13 @@ public class PetStepDefinitions {
 
     // ============ DELETE ============
 
-    @When("I delete the created pet")
-    public void iDeleteTheCreatedPet() {
+    @When("I delete pet with ID {long}")
+    public void iDeletePetWithId(long petId) {
         response = RestAssured
                 .given()
                 .log().all()
                 .when()
-                .delete("/pet/" + createdPetId)
-                .then()
-                .log().all()
-                .extract().response();
-    }
-
-    @And("I send a GET request for the deleted pet")
-    public void iSendAGetRequestForTheDeletedPet() {
-        response = RestAssured
-                .given()
-                .log().all()
-                .when()
-                .get("/pet/" + createdPetId)
+                .delete("/pet/" + petId)
                 .then()
                 .log().all()
                 .extract().response();
